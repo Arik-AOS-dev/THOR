@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<!smccaffr 20260108/>
+<html>
+<head>
+    <title>THOR 2026 Time Recorder (v11)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f3f3f3; }
+        #container { max-width: 400px; margin: 20px auto; padding: 10px; background-color: #fff; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        button { display: block; width: 100%; margin: 10px 0; padding: 15px; background-color: #007bff; color: #fff; border: none; border-radius: 5px; font-size: 18px; cursor: pointer; }
+        button:disabled { background-color: #000; color: gold; opacity: 0.7; }
+        button#recordTimeButton { background-color: #28a745; font-size: 36px; }
+        button#downloadButton { background-color: #17a2b8; font-size: 16px; padding: 12px; width: auto; float: right; }
+        #timeList { margin-top: 20px; clear: both; }
+        .timeEntry { background-color: #f9f9f9; border-radius: 5px; padding: 15px; margin-bottom: 10px; display: flex; align-items: center; }
+        .timeEntry input[type="text"] { width: 80px; margin-right: 10px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        .timeEntry span { font-size: 16px; color: #333; width: 110px; margin-right: 10px; font-family: monospace; }
+        #extraTextBox { width: 60px; margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        .timeEntry button { width: 70px; padding: 8px; font-size: 14px; margin: 0; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <button id="downloadButton" onclick="saveAndDownload()">Download</button>
+        <button id="startFinishToggle" onclick="toggleStartFinish()">THOR 2026 Start Line (v10)</button>
+        <button id="recordTimeButton" onclick="recordTime()">Record Time</button>
+        
+        <label for="extraTextBox">Enter Bow # </label>
+        <input type="number" id="extraTextBox" pattern="\[0-9]*\" inputmode="numeric" placeholder="Bow#">
+        <br/><small>(Enter bow # before RecordTime, or fix it below later)</small>
+
+        <div id="timeList"></div>
+    </div>
+
+    <script>
+        let times = [];
+        let startFinishType = 'Start';
+        let recordingStarted = false;
+
+        function toggleStartFinish() {
+            const toggleButton = document.getElementById('startFinishToggle');
+            if (!recordingStarted) {
+                startFinishType = (startFinishType === 'Start') ? 'Finish' : 'Start';
+                toggleButton.textContent = `THOR 2026 ${startFinishType} Line (v11)`;
+            }
+        }
+
+        function recordTime() {
+            recordingStarted = true;
+            document.getElementById('startFinishToggle').disabled = true;
+            
+            const extraValue = document.getElementById('extraTextBox').value;
+            const now = new Date();
+            const ms = now.getMilliseconds().toString().padStart(3, '0');
+            const formattedTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${ms}`;
+
+            const index = times.length;
+            times.push({ time: formattedTime });
+
+            const timeEntry = document.createElement('div');
+            timeEntry.classList.add('timeEntry');
+            timeEntry.innerHTML = `
+                <span>${formattedTime}</span>
+                <input type="text" id="textBox_${index}" value="${extraValue}" placeholder="Crew #">
+                <button onclick="saveOrModify(${index})">Lock</button>
+            `;
+            
+            document.getElementById('timeList').prepend(timeEntry);
+            document.getElementById('extraTextBox').value = '';
+            document.getElementById('extraTextBox').focus();
+        }
+
+        function saveOrModify(index) {
+            const textBox = document.getElementById(`textBox_${index}`);
+            const btn = textBox.nextElementSibling;
+            if (btn.textContent === 'Lock') {
+                textBox.disabled = true;
+                btn.textContent = 'Edit';
+            } else {
+                textBox.disabled = false;
+                btn.textContent = 'Lock';
+            }
+        }
+
+        function saveAndDownload() {
+            if (times.length === 0) return alert("No data recorded.");
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            const timeTitle = (startFinishType === 'Start') ? 'Start Time' : 'Finish Time';
+            const crewTitle = (startFinishType === 'Start') ? 'Start Crew' : 'Finish Crew';
+            csvContent += `${timeTitle},${crewTitle}\n`;
+
+            times.forEach((entry, index) => {
+                const val = document.getElementById(`textBox_${index}`).value;
+                csvContent += `${entry.time},${val}\n`;
+            });
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const filename = `THOR26_${startFinishType}_${timestamp}.csv`;
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        window.onbeforeunload = function() { return "Data will be lost!"; };
+    </script>
+</body>
+</html>
